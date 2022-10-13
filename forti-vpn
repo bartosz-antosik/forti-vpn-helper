@@ -1,27 +1,43 @@
 #!/bin/sh
 
 # Modify these to provide tools locations
-VPN_TOOL=/usr/local/bin/openfortivpn
 VPN_LOGIN=/opt/openfortivpn-webview/openfortivpn-webview
+VPN_TOOL=/usr/local/bin/openfortivpn
 
 # Modify these to provide appropriate URL & realm
-FORTIVPN_URL={url:port}
+FORTIVPN_URL=
 FORTIVPN_REALM=foo
 
 LOG_FILE=/tmp/fortivpn.log
 TMP_FILE=$(mktemp)
 
+script=$0
+script="${script##*/}"
+
 start() {
     VPNCOOKIE=$(${VPN_LOGIN} ${FORTIVPN_URL} --realm=${FORTIVPN_REALM}) 2> /dev/null
     echo ${VPNCOOKIE} | sudo ${VPN_TOOL} ${FORTIVPN_URL} --realm=${FORTIVPN_REALM} --cookie-on-stdin > ${LOG_FILE} 2>&1 &
-    sudo echo "VPN (${FORTIVPN_URL}) started."
+    sudo echo "${script}: (${FORTIVPN_URL}) started."
 }
 
 stop() {
     sudo ps -aef | grep ${VPN_TOOL} > /dev/null 2>&1
     sudo kill -SIGINT $(pidof ${VPN_TOOL}) > /dev/null 2>&1
-    sudo echo "VPN (${FORTIVPN_URL}) stopped."
+    sudo echo "${script}: (${FORTIVPN_URL}) stopped."
 }
+
+status() {
+    if pidof -x ${VPN_TOOL} -o $$ >/dev/null; then
+        echo "${script}: (${FORTIVPN_URL}) running."
+    else
+        echo "${script}: (${FORTIVPN_URL}) not running."
+    fi
+}
+
+if [ -z ${FORTIVPN_URL} ]; then
+    printf "${script}: missing FORTIVPN_URL value.\n"
+    exit 1
+fi
 
 case "$1" in
     start|up)
@@ -30,12 +46,15 @@ case "$1" in
     stop|down)
         stop
         ;;
+    status)
+        status
+        ;;
     restart)
         stop
         start
         ;;
     *)
-    echo $"Usage: $0 {start|up|stop|down|restart}"
+    echo $"Usage: $0 {start|up|stop|down|status|restart}"
     exit 1
 esac
 

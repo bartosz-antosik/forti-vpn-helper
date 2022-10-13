@@ -15,15 +15,15 @@ These two binaries, compiled for appropriate platform, are required to use the s
 These variables, located inside the `fortivpn.sh` script, have to be set to provide locations of the binary utilities used by the script:
 
 ```shell
-VPN_TOOL=/usr/local/bin/openfortivpn
 VPN_LOGIN=/opt/openfortivpn-webview/openfortivpn-webview
+VPN_TOOL=/usr/local/bin/openfortivpn
 ```
 
 Another two variables have to be set to provide appropriate URL and realm for the VPN that the script is going to be used with:
 
 ```shell
-FORTIVPNURL={host:port}
-FORTIVPNREALM={realm}
+FORTIVPN_URL={host:port}
+FORTIVPN_REALM={realm}
 ```
 
 ## Usage
@@ -38,6 +38,12 @@ To finish the VPN connection:
 
 ```shell
 fortivpn down
+```
+
+To check status of the VPN connection:
+
+```shell
+fortivpn status
 ```
 
 ## ToDo

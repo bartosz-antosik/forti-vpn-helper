@@ -45,8 +45,3 @@ To check status of the VPN connection:
 ```shell
 fortivpn status
 ```
-
-## ToDo
-
-- [ ] Better error handling (parsing output of background task)
-- [ ] Multiple or configurable URL to login to

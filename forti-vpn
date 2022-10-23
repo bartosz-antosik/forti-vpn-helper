@@ -1,33 +1,74 @@
-#!/bin/sh
+#!/bin/bash
+
+# Modify these or provide them in configuration file
+FORTIVPN_URL=""
+FORTIVPN_REALM=""
+FORTIVPN_ROUTES=""
+
+# The above can be overriden in the config file
+CONFIG_DIR="/etc"
+if test -f ${CONFIG_DIR}/forti-vpn.conf ; then
+    source "${CONFIG_DIR}/forti-vpn.conf"
+fi
 
 # Modify these to provide tools locations
 VPN_LOGIN=/opt/openfortivpn-webview/openfortivpn-webview
 VPN_TOOL=/usr/local/bin/openfortivpn
 
-# Modify these to provide appropriate URL & realm
-FORTIVPN_URL=
-FORTIVPN_REALM=foo
+# This is bit of stiupid but since the vpn process is sent to the background
+# we have to wait for such a text to appear in the log, to know it succeded.
+VPN_MATCH_TEXT="Tunnel is up and running."
 
-LOG_FILE=/tmp/fortivpn.log
+LOG_FILE=/tmp/forti-vpn.log
 TMP_FILE=$(mktemp)
 
 script=$0
 script="${script##*/}"
 
+is_running() {
+    pidof -x ${VPN_TOOL} -o $$ >/dev/null
+}
+
 start() {
-    VPNCOOKIE=$(${VPN_LOGIN} ${FORTIVPN_URL} --realm=${FORTIVPN_REALM}) 2> /dev/null
-    echo ${VPNCOOKIE} | sudo ${VPN_TOOL} ${FORTIVPN_URL} --realm=${FORTIVPN_REALM} --cookie-on-stdin > ${LOG_FILE} 2>&1 &
-    sudo echo "${script}: (${FORTIVPN_URL}) started."
+    # This `sudo` is to cache password! Script relies on password caching
+    # because otherwise next sudo password request will most likely fail.
+    sudo rm ${LOG_FILE} 2> /dev/null
+
+    COOKIE=$(${VPN_LOGIN} ${FORTIVPN_URL} --realm=${FORTIVPN_REALM} 2> /dev/null)
+    echo ${COOKIE} | sudo ${VPN_TOOL} ${FORTIVPN_URL} --realm=${FORTIVPN_REALM} \
+        --cookie-on-stdin > ${LOG_FILE} 2>&1 &
+
+    # Wait for the log file to appear
+    while ! test -f ${LOG_FILE}; do sleep 1; done
+
+    # Let's parse the log file a bit.
+    if timeout 30 tail -f ${LOG_FILE} | grep -q -wi "${VPN_MATCH_TEXT}"; then
+        # Looks like we are connected. Let's set up routing if target
+        # networks are provided.
+        if [ -n "${FORTIVPN_ROUTES}" ]; then
+            addr=`ip addr show vpn | grep "inet\b" | awk '{print $2}' | cut -d/ -f1`
+            for route in ${FORTIVPN_ROUTES}; do
+                sudo route add -net $route gw $addr vpn
+            done
+        fi
+
+        echo "${script}: (${FORTIVPN_URL}) started."
+    else
+        echo "${script}: (${FORTIVPN_URL}) failed to start."
+    fi
 }
 
 stop() {
-    sudo ps -aef | grep ${VPN_TOOL} > /dev/null 2>&1
     sudo kill -SIGINT $(pidof ${VPN_TOOL}) > /dev/null 2>&1
-    sudo echo "${script}: (${FORTIVPN_URL}) stopped."
+
+    cat ${LOG_FILE}
+    rm ${LOG_FILE} 2> /dev/null
+
+    echo "${script}: (${FORTIVPN_URL}) stopped."
 }
 
 status() {
-    if pidof -x ${VPN_TOOL} -o $$ >/dev/null; then
+    if is_running; then
         echo "${script}: (${FORTIVPN_URL}) running."
     else
         echo "${script}: (${FORTIVPN_URL}) not running."
@@ -57,5 +98,3 @@ case "$1" in
     echo $"Usage: $0 {start|up|stop|down|status|restart}"
     exit 1
 esac
-
-exit 0

@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # Modify these or provide them in configuration file
-FORTIVPN_URL=""
-FORTIVPN_REALM=""
-FORTIVPN_ROUTES=""
+FORTIVPN_URL="" # e.g. "vpn.host:port"
+FORTIVPN_REALM="" # e.g. "foo"
+FORTIVPN_ROUTES="" # e.g. "123.0.0.4/16 123.0.0.5/16"
 
 # The above can be overriden in the config file
 CONFIG_DIR="/etc"
@@ -61,7 +61,6 @@ start() {
 stop() {
     sudo kill -SIGINT $(pidof ${VPN_TOOL}) > /dev/null 2>&1
 
-    cat ${LOG_FILE}
     rm ${LOG_FILE} 2> /dev/null
 
     echo "${script}: (${FORTIVPN_URL}) stopped."

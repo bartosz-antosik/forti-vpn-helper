@@ -46,9 +46,10 @@ start() {
         # Looks like we are connected. Let's set up routing if target
         # networks are provided.
         if [ -n "${FORTIVPN_ROUTES}" ]; then
-            addr=`ip addr show vpn | grep "inet\b" | awk '{print $2}' | cut -d/ -f1`
+            sudo route del default ppp0
+            addr=`ip addr show ppp0 | grep "inet\b" | awk '{print $2}' | cut -d/ -f1`
             for route in ${FORTIVPN_ROUTES}; do
-                sudo route add -net $route gw $addr vpn
+                sudo route add -net $route gw $addr ppp0
             done
         fi
 

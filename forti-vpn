@@ -14,6 +14,8 @@ fi
 # Modify these to provide tools locations
 VPN_LOGIN=/opt/openfortivpn-webview/openfortivpn-webview
 VPN_TOOL=/usr/local/bin/openfortivpn
+VPN_TOOL_OPTIONS=""
+VPN_INTERFACE=ppp0
 
 # This is bit of stiupid but since the vpn process is sent to the background
 # we have to wait for such a text to appear in the log, to know it succeded.
@@ -34,22 +36,27 @@ start() {
     # because otherwise next sudo password request will most likely fail.
     sudo rm ${LOG_FILE} 2> /dev/null
 
+    if [ -n "${FORTIVPN_ROUTES}" ]; then
+        VPN_TOOL_OPTIONS="${VPN_TOOL_OPTIONS} --no-routes"
+    fi
+
+    # Get cookie after authorization
     COOKIE=$(${VPN_LOGIN} ${FORTIVPN_URL} --realm=${FORTIVPN_REALM} 2> /dev/null)
+    # Establish connection
     echo ${COOKIE} | sudo ${VPN_TOOL} ${FORTIVPN_URL} --realm=${FORTIVPN_REALM} \
-        --cookie-on-stdin > ${LOG_FILE} 2>&1 &
+        --cookie-on-stdin ${VPN_TOOL_OPTIONS} > ${LOG_FILE} 2>&1 &
 
     # Wait for the log file to appear
     while ! test -f ${LOG_FILE}; do sleep 1; done
 
-    # Let's parse the log file a bit.
+    # Let's parse the log file for a while..
     if timeout 30 tail -f ${LOG_FILE} | grep -q -wi "${VPN_MATCH_TEXT}"; then
         # Looks like we are connected. Let's set up routing if target
         # networks are provided.
         if [ -n "${FORTIVPN_ROUTES}" ]; then
-            sudo route del default ppp0
-            addr=`ip addr show ppp0 | grep "inet\b" | awk '{print $2}' | cut -d/ -f1`
+            addr=`ip addr show ${VPN_INTERFACE} | grep "inet\b" | awk '{print $2}' | cut -d/ -f1`
             for route in ${FORTIVPN_ROUTES}; do
-                sudo route add -net $route gw $addr ppp0
+                sudo route add -net $route gw $addr ${VPN_INTERFACE}
             done
         fi
 

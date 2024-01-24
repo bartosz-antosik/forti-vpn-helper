@@ -6,9 +6,9 @@ A helper script to integrate start/stop of Fortigate VPN with SAML single sign-o
 
 These two binaries, compiled for appropriate platform, are required to use the script:
 
-[openfortivpn](https://github.com/adrienverge/openfortivpn) version 18.0 or newer (`--cookie` option is required).
+[openfortivpn](https://github.com/adrienverge/openfortivpn) version 1.18 or newer (`--cookie` option is required).
 
-[openfortivpn-webview](https://github.com/gm-vm/openfortivpn-webview) version 1.0.1 or newer.
+[openfortivpn-webview](https://github.com/gm-vm/openfortivpn-webview) version 1.0.1 or newer, or [fortitude-webview](https://github.com/PolyMeilex/fortitude-webview) which works under WSL2.
 
 ## Configuration
 

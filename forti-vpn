@@ -41,7 +41,7 @@ start() {
     fi
 
     # Get cookie after authorization
-    COOKIE=$(${VPN_LOGIN} ${FORTIVPN_URL} --realm=${FORTIVPN_REALM} 2> /dev/null)
+    COOKIE=$(${VPN_LOGIN} ${FORTIVPN_URL} --realm=${FORTIVPN_REALM} --url-regex="/sslvpn/portal" 2> /dev/null)
     # Establish connection
     echo ${COOKIE} | sudo ${VPN_TOOL} ${FORTIVPN_URL} --realm=${FORTIVPN_REALM} \
         --cookie-on-stdin ${VPN_TOOL_OPTIONS} > ${LOG_FILE} 2>&1 &

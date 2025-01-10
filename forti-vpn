@@ -4,12 +4,13 @@
 FORTIVPN_URL="" # e.g. "vpn.host:port"
 FORTIVPN_REALM="" # e.g. "foo"
 FORTIVPN_ROUTES="" # e.g. "123.0.0.4/16 123.0.0.5/16"
+FORTIVPN_USER="" # If empty SAML
+FORTIVPN_PASSWORD="" # If empty use SAML
+FORTIVPN_LOGIN_TRUSTED_CERT="" # Not supported for now
+FORTIVPN_VPN_TRUSTED_CERT=""
 
-# The above can be overriden in the config file
+# The above can be overriden in the config file below
 CONFIG_DIR="/etc"
-if test -f ${CONFIG_DIR}/forti-vpn.conf ; then
-    source "${CONFIG_DIR}/forti-vpn.conf"
-fi
 
 # Modify these to provide tools locations
 VPN_LOGIN=/opt/openfortivpn-webview/openfortivpn-webview
@@ -23,28 +24,71 @@ VPN_MATCH_TEXT="Tunnel is up and running."
 
 LOG_FILE=/tmp/forti-vpn.log
 TMP_FILE=$(mktemp)
+TRACE_FILE=/tmp/forti-vpn.trace
 
 script=$0
 script="${script##*/}"
+
+get_configuration() {
+
+    if test -f "$TRACE_FILE"; then
+        # Select file that script was star|up with
+        CONFIG_FILE=$(<${TRACE_FILE})
+    else
+        # If there is second parameter it should indicate elternative config file
+        if [ -z "$1" ]; then
+            # Default config file
+            if test -f ${CONFIG_DIR}/forti-vpn.conf ; then
+                CONFIG_FILE="${CONFIG_DIR}/forti-vpn.conf"
+            fi
+        else
+            # Alternative config file
+            if test -f ${CONFIG_DIR}/forti-vpn-$1.conf ; then
+                CONFIG_FILE="${CONFIG_DIR}/forti-vpn-$1.conf"
+            fi
+        fi
+    fi
+
+    source "${CONFIG_FILE}"
+
+    if [ -z ${FORTIVPN_URL} ]; then
+        printf "${script}: missing FORTIVPN_URL value.\n"
+        exit 1
+    fi
+}
 
 is_running() {
     pidof -x ${VPN_TOOL} -o $$ >/dev/null
 }
 
 start() {
+    get_configuration $1
+
+    echo "${CONFIG_FILE}" >${TRACE_FILE}
+
     # This `sudo` is to cache password! Script relies on password caching
     # because otherwise next sudo password request will most likely fail.
     sudo rm ${LOG_FILE} 2> /dev/null
 
-    if [ -n "${FORTIVPN_ROUTES}" ]; then
+    if [ ! -n "${FORTIVPN_ROUTES}" ]; then
         VPN_TOOL_OPTIONS="${VPN_TOOL_OPTIONS} --no-routes"
     fi
 
-    # Get cookie after authorization
-    COOKIE=$(${VPN_LOGIN} ${FORTIVPN_URL} --realm=${FORTIVPN_REALM} --url-regex="/sslvpn/portal" 2> /dev/null)
-    # Establish connection
-    echo ${COOKIE} | sudo ${VPN_TOOL} ${FORTIVPN_URL} --realm=${FORTIVPN_REALM} \
-        --cookie-on-stdin ${VPN_TOOL_OPTIONS} > ${LOG_FILE} 2>&1 &
+    if [ -n "${FORTIVPN_VPN_TRUSTED_CERT}" ]; then
+        VPN_TOOL_OPTIONS="${VPN_TOOL_OPTIONS} --trusted-cert ${FORTIVPN_VPN_TRUSTED_CERT}"
+    fi
+
+    if [ ! -n "${FORTIVPN_USER}" ]; then
+        # Get cookie after authorization
+        COOKIE=$(${VPN_LOGIN} ${FORTIVPN_URL} --realm=${FORTIVPN_REALM} --url-regex="/sslvpn/portal" 2> /dev/null)
+        # Establish VPN connection
+        echo ${COOKIE} | sudo ${VPN_TOOL} ${FORTIVPN_URL} --realm=${FORTIVPN_REALM} \
+            --cookie-on-stdin ${VPN_TOOL_OPTIONS} > ${LOG_FILE} 2>&1 &
+    else
+        # Establish VPN connection
+        echo "" | sudo ${VPN_TOOL} ${FORTIVPN_URL} --realm=${FORTIVPN_REALM} \
+            -u ${FORTIVPN_USER} -p ${FORTIVPN_PASSWORD} ${VPN_TOOL_OPTIONS} > ${LOG_FILE} 2>&1 &
+    fi
 
     # Wait for the log file to appear
     while ! test -f ${LOG_FILE}; do sleep 1; done
@@ -67,14 +111,19 @@ start() {
 }
 
 stop() {
+    get_configuration
+
     sudo kill -SIGINT $(pidof ${VPN_TOOL}) > /dev/null 2>&1
 
     rm ${LOG_FILE} 2> /dev/null
+    rm ${TRACE_FILE} 2> /dev/null
 
     echo "${script}: (${FORTIVPN_URL}) stopped."
 }
 
 status() {
+    get_configuration
+
     if is_running; then
         echo "${script}: (${FORTIVPN_URL}) running."
     else
@@ -82,14 +131,9 @@ status() {
     fi
 }
 
-if [ -z ${FORTIVPN_URL} ]; then
-    printf "${script}: missing FORTIVPN_URL value.\n"
-    exit 1
-fi
-
 case "$1" in
     start|up)
-        start
+        start $2
         ;;
     stop|down)
         stop
@@ -99,9 +143,9 @@ case "$1" in
         ;;
     restart)
         stop
-        start
+        start $2
         ;;
     *)
-    echo $"Usage: $0 {start|up|stop|down|status|restart}"
+    echo $"Usage: $0 {start|up|stop|down|status|restart} [configuration]"
     exit 1
 esac

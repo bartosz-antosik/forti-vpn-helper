@@ -32,24 +32,29 @@ script="${script##*/}"
 get_configuration() {
 
     if test -f "$TRACE_FILE"; then
-        # Select file that script was star|up with
+        # Select file that script was (start|up)-ed with
         CONFIG_FILE=$(<${TRACE_FILE})
     else
         # If there is second parameter it should indicate elternative config file
         if [ -z "$1" ]; then
             # Default config file
-            if test -f ${CONFIG_DIR}/forti-vpn.conf ; then
+            if test -f "${CONFIG_DIR}/forti-vpn.conf"; then
                 CONFIG_FILE="${CONFIG_DIR}/forti-vpn.conf"
             fi
         else
             # Alternative config file
-            if test -f ${CONFIG_DIR}/forti-vpn-$1.conf ; then
+            if test -f "${CONFIG_DIR}/forti-vpn-$1.conf"; then
                 CONFIG_FILE="${CONFIG_DIR}/forti-vpn-$1.conf"
             fi
         fi
     fi
 
-    source "${CONFIG_FILE}"
+    if test -f "${CONFIG_FILE}"; then
+        source "${CONFIG_FILE}"
+    else
+        printf "${script}: missing configuration file.\n"
+        exit 1
+    fi
 
     if [ -z ${FORTIVPN_URL} ]; then
         printf "${script}: missing FORTIVPN_URL value.\n"

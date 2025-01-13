@@ -27,6 +27,7 @@ FORTIVPN_REALM={realm}
 FORTIVPN_USER={user}
 FORTIVPN_PASSWORD={password}
 FORTIVPN_ROUTES="123.0.0.4/16 123.0.0.5/16"
+FORTIVPN_VPN_TRUSTED_CERT={signature}
 ```
 
 There can be multiple configuration files, they are selected by providing a name suffix as the last parameter to the script call, for example:
@@ -41,6 +42,8 @@ The defult file can be e symbolic link to one of the configurations provided:
 if `FORTIVPN_USER` and `FORTIVPN_PASSWORD` are provided SAML token discovery is omitted and the provided credentials are used to initialize the tunnel.
 
 if `FORTIVPN_ROUTES` is left empty no routes are established by the script and default routes provisioned by the connection server are used.
+
+`FORTIVPN_VPN_TRUSTED_CERT` can be used e.g. when certificate used by the gateway is self-signed. Signature can be grabbed from `/tmp/forti-vpn.log` after unsuccesful login.
 
 ## Usage
 

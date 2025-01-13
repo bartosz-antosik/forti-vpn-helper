@@ -7,7 +7,7 @@ FORTIVPN_ROUTES="" # e.g. "123.0.0.4/16 123.0.0.5/16"
 FORTIVPN_USER="" # If empty SAML
 FORTIVPN_PASSWORD="" # If empty use SAML
 FORTIVPN_LOGIN_TRUSTED_CERT="" # Not supported for now
-FORTIVPN_VPN_TRUSTED_CERT=""
+FORTIVPN_VPN_TRUSTED_CERT="" # Cert signature to trust (from /tmp/forti-vpn.log)
 
 # The above can be overriden in the config file below
 CONFIG_DIR="/etc"

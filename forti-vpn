@@ -84,11 +84,17 @@ start() {
     fi
 
     if [ ! -n "${FORTIVPN_USER}" ]; then
-        # Get cookie after authorization
-        COOKIE=$(${VPN_LOGIN} ${FORTIVPN_URL} --realm=${FORTIVPN_REALM} --url-regex="/sslvpn/portal" 2> /dev/null)
-        # Establish VPN connection
-        echo ${COOKIE} | sudo ${VPN_TOOL} ${FORTIVPN_URL} --realm=${FORTIVPN_REALM} \
-            --cookie-on-stdin ${VPN_TOOL_OPTIONS} > ${LOG_FILE} 2>&1 &
+        if [ ! -n "$VPN_LOGIN" ]; then
+            # Using `tee` to make sure that login URL is visible
+            sudo ${VPN_TOOL} --saml-login ${FORTIVPN_URL} --realm=${FORTIVPN_REALM} \
+                 ${VPN_TOOL_OPTIONS} 2>&1 | tee "${LOG_FILE}" &
+        else
+            # Get cookie after authorization
+            COOKIE=$(${VPN_LOGIN} ${FORTIVPN_URL} --realm=${FORTIVPN_REALM} --url-regex="/sslvpn/portal" 2> /dev/null)
+            # Establish VPN connection
+            echo ${COOKIE} | sudo ${VPN_TOOL} ${FORTIVPN_URL} --realm=${FORTIVPN_REALM} \
+                --cookie-on-stdin ${VPN_TOOL_OPTIONS} > ${LOG_FILE} 2>&1 &
+        fi
     else
         # Establish VPN connection
         echo "" | sudo ${VPN_TOOL} ${FORTIVPN_URL} --realm=${FORTIVPN_REALM} \
